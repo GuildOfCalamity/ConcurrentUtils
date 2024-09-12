@@ -68,7 +68,10 @@ Task t1 = jobQueue.Enqueue("https://www.google.com/");
 Task t2 = jobQueue.Enqueue("https://www.microsoft.com/net/core");
 Task t3 = jobQueue.Enqueue("https://www.nuget.org/");
 Task t4 = jobQueue.Enqueue("https://dotnet.github.io/");
-// Items are processed as FIFO a queue, without exceeding the max amount of parallel operations limit
+// Items are processed as FIFO queue, without exceeding the max amount of parallel operations limit
 await Task.WhenAll(t1, t2, t3, t4);
 ```
 
+---
+
+![console](Screenshot.png)

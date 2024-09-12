@@ -16,12 +16,12 @@ namespace ConcurrentUtils
         /// <summary>
         /// Event that is raised once the job queue is empty.
         /// </summary>
-        event Action Drained;
+        event Action<DateTime>? Drained;
 
         /// <summary>
         /// Event that is raised when the task was not able to complete.
         /// </summary>
-        event Action<Exception> UnhandledException;
+        event Action<Exception>? UnhandledException;
 
         /// <summary>
         /// Gets the amount of queued items.
@@ -37,7 +37,15 @@ namespace ConcurrentUtils
         Task Enqueue(T item);
 
         /// <summary>
+        /// Adds an object to the end of the <see cref="IJobQueue{T}"/> and does not propagate exceptions.
+        /// </summary>
+        /// <param name="item">The item to be added.</param>
+        /// <exception cref="ObjectDisposedException" />
+        Task EnqueueIgnoreExceptions(T item);
+
+        /// <summary>
         /// Adds an object to the end of the <see cref="IJobQueue{T}"/>.
+        /// Any <see cref="Exception"/>s thrown will not be propagated.
         /// </summary>
         /// <param name="item">The item to be added.</param>
         /// <exception cref="ObjectDisposedException" />
@@ -55,11 +63,14 @@ namespace ConcurrentUtils
         private volatile bool _isDisposed;
         private long _queuedCount;
 
-        public event Action Drained;
+        public event Action<DateTime>? Drained;
 
-        public event Action<Exception> UnhandledException;
+        public event Action<Exception>? UnhandledException;
 
-        public long Count { get { return Volatile.Read(ref _queuedCount); } }
+        public long Count 
+        { 
+            get => Volatile.Read(ref _queuedCount); 
+        }
 
         internal JobQueue(int limit, Func<T, Task> method)
         {
@@ -70,6 +81,11 @@ namespace ConcurrentUtils
         public Task Enqueue(T item)
         {
             return Enqueue(item, true);
+        }
+
+        public Task EnqueueIgnoreExceptions(T item)
+        {
+            return Enqueue(item, false);
         }
 
         private Task Enqueue(T item, bool throwExceptions)
@@ -108,22 +124,15 @@ namespace ConcurrentUtils
             }
             catch (Exception ex)
             {
-                if (UnhandledException != null)
-                {
-                    UnhandledException(ex);
-                }
+                UnhandledException?.Invoke(ex);
                 if (throwExceptions)
-                {
                     throw;
-                }
             }
             finally
             {
                 var empty = Interlocked.Decrement(ref _queuedCount) == 0;
-                if (empty && Drained != null)
-                {
-                    Drained();
-                }
+                if (empty)
+                    Drained?.Invoke(DateTime.Now);
             }
         }
 
@@ -132,5 +141,6 @@ namespace ConcurrentUtils
             _isDisposed = true;
             _semaphore.Dispose();
         }
+
     }
 }
